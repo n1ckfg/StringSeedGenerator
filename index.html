@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>String Seed Generator — SSoT Visual Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
+  <script src="stringseed.js"></script>
+  <style>
+    :root {
+      --bg:       #0f0f1a;
+      --panel-bg: #1a1a2e;
+      --border:   #2d2d4a;
+      --text:     #e0e0f0;
+      --dim:      #7878a0;
+      --accent:   #6c63ff;
+      --accent2:  #ff6584;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--dim);
+      margin-bottom: 20px;
+      letter-spacing: 0.06em;
+    }
+
+    #canvas-container {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    #canvas-container canvas {
+      display: block;
+    }
+
+    /* ----- Info panel ----- */
+
+    #info-panel {
+      width: 800px;
+      max-width: 100%;
+      margin-top: 20px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .panel-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--dim);
+      margin-bottom: 6px;
+    }
+
+    .seed-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    #seed-input {
+      flex: 1;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.8rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      letter-spacing: 0.08em;
+    }
+    #seed-input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.2s;
+      letter-spacing: 0.04em;
+    }
+    .btn:active { transform: scale(0.96); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(108,99,255,0.35);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 4px 20px rgba(108,99,255,0.55);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--dim);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    #provenance {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 0.68rem;
+      line-height: 1.6;
+      color: var(--dim);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    #provenance::-webkit-scrollbar { width: 6px; }
+    #provenance::-webkit-scrollbar-track { background: transparent; }
+    #provenance::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* ----- Shape legend ----- */
+    #legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      font-size: 0.7rem;
+      color: var(--dim);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    @media (max-width: 840px) {
+      #info-panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>String Seed Generator</h1>
+  <p class="subtitle">SSoT — String Seed of Thought &middot; Visual Demo</p>
+
+  <div id="canvas-container"></div>
+
+  <div id="info-panel">
+    <div class="panel-label">Hex Seed — edit to update shapes</div>
+    <div class="seed-row">
+      <input type="text" id="seed-input" spellcheck="false" autocomplete="off" />
+      <button class="btn btn-primary" id="btn-regen">🎲 New</button>
+      <button class="btn btn-secondary" id="btn-copy">📋 Copy</button>
+    </div>
+
+    <div id="legend"></div>
+
+    <div class="panel-label">Provenance Block — verifiable arithmetic</div>
+    <pre id="provenance"></pre>
+  </div>
+
+<script>
+// ============================================================================
+//  Configuration
+// ============================================================================
+
+const CANVAS_W = 800;
+const CANVAS_H = 480;
+const NUM_SHAPES = 5;
+const AXES_PER_SHAPE = 6;
+const SEED_BYTES = Math.ceil((NUM_SHAPES * AXES_PER_SHAPE * 4) / 2); // 60 bytes
+
+// ----- Axis candidate lists -----
+
+const SHAPE_TYPES = [
+  'circle', 'square', 'triangle', 'diamond',
+  'pentagon', 'hexagon', 'star', 'cross'
+];
+
+const COLORS = [
+  { name: 'red',    h: 0,   s: 80, b: 100 },
+  { name: 'orange', h: 28,  s: 85, b: 100 },
+  { name: 'gold',   h: 48,  s: 80, b: 100 },
+  { name: 'green',  h: 140, s: 65, b: 85  },
+  { name: 'teal',   h: 175, s: 65, b: 85  },
+  { name: 'blue',   h: 220, s: 70, b: 95  },
+  { name: 'indigo', h: 255, s: 60, b: 90  },
+  { name: 'purple', h: 280, s: 60, b: 90  },
+  { name: 'pink',   h: 335, s: 55, b: 95  },
+  { name: 'white',  h: 0,   s: 0,  b: 100 },
+];
+
+const SIZES = [
+  { name: 'tiny',   r: 22  },
+  { name: 'small',  r: 36  },
+  { name: 'medium', r: 52  },
+  { name: 'large',  r: 72  },
+  { name: 'big',    r: 90  },
+  { name: 'huge',   r: 112 },
+];
+
+const ROTATIONS = [
+  { name: '0°',   deg: 0   },
+  { name: '45°',  deg: 45  },
+  { name: '90°',  deg: 90  },
+  { name: '135°', deg: 135 },
+  { name: '180°', deg: 180 },
+  { name: '225°', deg: 225 },
+  { name: '270°', deg: 270 },
+  { name: '315°', deg: 315 },
+];
+
+// Positions as fractions of canvas — 7 evenly spaced zones.
+const X_POSITIONS = [
+  { name: 'far-left',     frac: 1/8 },
+  { name: 'left',         frac: 2/8 },
+  { name: 'center-left',  frac: 3/8 },
+  { name: 'center',       frac: 4/8 },
+  { name: 'center-right', frac: 5/8 },
+  { name: 'right',        frac: 6/8 },
+  { name: 'far-right',    frac: 7/8 },
+];
+
+const Y_POSITIONS = [
+  { name: 'top',          frac: 1/8 },
+  { name: 'upper',        frac: 2/8 },
+  { name: 'mid-upper',    frac: 3/8 },
+  { name: 'center',       frac: 4/8 },
+  { name: 'mid-lower',    frac: 5/8 },
+  { name: 'lower',        frac: 6/8 },
+  { name: 'bottom',       frac: 7/8 },
+];
+
+// ============================================================================
+//  Build the StringSeed resolver
+// ============================================================================
+
+function buildResolver() {
+  const ss = new StringSeed();
+  for (let i = 0; i < NUM_SHAPES; i++) {
+    const label = `shape-${i + 1}`;
+    ss.addAxis(`${label} type`,     SHAPE_TYPES);
+    ss.addAxis(`${label} color`,    COLORS.map(c => c.name));
+    ss.addAxis(`${label} size`,     SIZES.map(s => s.name));
+    ss.addAxis(`${label} rotation`, ROTATIONS.map(r => r.name));
+    ss.addAxis(`${label} x-pos`,    X_POSITIONS.map(p => p.name));
+    ss.addAxis(`${label} y-pos`,    Y_POSITIONS.map(p => p.name));
+  }
+  return ss;
+}
+
+const resolver = buildResolver();
+
+// ============================================================================
+//  State
+// ============================================================================
+
+let currentSeed = StringSeed.generateSeed(SEED_BYTES);
+let shapes = [];  // derived from seed
+
+function deriveShapes(seed) {
+  const results = resolver.resolve(seed);
+  const out = [];
+
+  for (let i = 0; i < NUM_SHAPES; i++) {
+    const base = i * AXES_PER_SHAPE;
+    const typeIdx  = results[base + 0].index;
+    const colorIdx = results[base + 1].index;
+    const sizeIdx  = results[base + 2].index;
+    const rotIdx   = results[base + 3].index;
+    const xIdx     = results[base + 4].index;
+    const yIdx     = results[base + 5].index;
+
+    out.push({
+      type:     SHAPE_TYPES[typeIdx],
+      color:    COLORS[colorIdx],
+      size:     SIZES[sizeIdx].r,
+      rotation: ROTATIONS[rotIdx].deg,
+      x:        X_POSITIONS[xIdx].frac * CANVAS_W,
+      y:        Y_POSITIONS[yIdx].frac * CANVAS_H,
+      // for legend
+      sizeName: SIZES[sizeIdx].name,
+      xName:    X_POSITIONS[xIdx].name,
+      yName:    Y_POSITIONS[yIdx].name,
+    });
+  }
+
+  return { shapes: out, results };
+}
+
+// ============================================================================
+//  p5.js Sketch
+// ============================================================================
+
+const sketch = (p) => {
+
+  p.setup = function () {
+    const canvas = p.createCanvas(CANVAS_W, CANVAS_H);
+    canvas.parent('canvas-container');
+    p.colorMode(p.HSB, 360, 100, 100, 100);
+    p.textFont('monospace');
+    refreshFromSeed();
+  };
+
+  p.draw = function () {
+    // Dark gradient background
+    drawBackground(p);
+
+    // Subtle grid
+    drawGrid(p);
+
+    // Shapes
+    for (const s of shapes) {
+      drawPShape(p, s);
+    }
+
+    // Shape index labels
+    for (let i = 0; i < shapes.length; i++) {
+      const s = shapes[i];
+      p.push();
+      p.noStroke();
+      p.fill(0, 0, 100, 40);
+      p.textSize(10);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.text(i + 1, s.x, s.y - s.size / 2 - 14);
+      p.pop();
+    }
+  };
+
+  // ----- Background -----
+
+  function drawBackground(p) {
+    // Radial-ish gradient via layered rects
+    p.noStroke();
+    p.fill(230, 30, 8);
+    p.rect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Subtle vignette
+    const cx = CANVAS_W / 2, cy = CANVAS_H / 2;
+    for (let r = 400; r > 0; r -= 20) {
+      const alpha = p.map(r, 0, 400, 0, 6);
+      p.fill(250, 40, 18, alpha);
+      p.ellipse(cx, cy, r * 2.5, r * 2);
+    }
+  }
+
+  // ----- Grid -----
+
+  function drawGrid(p) {
+    p.stroke(240, 20, 30, 15);
+    p.strokeWeight(0.5);
+    for (let x = CANVAS_W / 8; x < CANVAS_W; x += CANVAS_W / 8) {
+      p.line(x, 0, x, CANVAS_H);
+    }
+    for (let y = CANVAS_H / 8; y < CANVAS_H; y += CANVAS_H / 8) {
+      p.line(0, y, CANVAS_W, y);
+    }
+  }
+
+  // ----- Shape renderer -----
+
+  function drawPShape(p, s) {
+    p.push();
+    p.translate(s.x, s.y);
+    p.rotate(p.radians(s.rotation));
+
+    // Fill
+    p.fill(s.color.h, s.color.s, s.color.b, 80);
+    // Stroke — lighter version
+    p.stroke(s.color.h, Math.max(0, s.color.s - 30), Math.min(100, s.color.b + 10), 50);
+    p.strokeWeight(2);
+
+    // Shadow glow via drawing context
+    if (p.drawingContext && p.drawingContext.shadowColor !== undefined) {
+      const rgbStr = hsbToRgbString(s.color.h, s.color.s, s.color.b);
+      p.drawingContext.shadowColor = rgbStr;
+      p.drawingContext.shadowBlur = 18;
+    }
+
+    const r = s.size / 2;
+
+    switch (s.type) {
+      case 'circle':
+        p.ellipse(0, 0, s.size, s.size);
+        break;
+
+      case 'square':
+        p.rectMode(p.CENTER);
+        p.rect(0, 0, s.size, s.size, 4);
+        break;
+
+      case 'triangle': {
+        const h = s.size * 0.866;
+        p.triangle(-r, h / 2, r, h / 2, 0, -h / 2);
+        break;
+      }
+
+      case 'diamond':
+        p.quad(0, -r, r, 0, 0, r, -r, 0);
+        break;
+
+      case 'pentagon':
+        drawPolygon(p, 0, 0, r, 5);
+        break;
+
+      case 'hexagon':
+        drawPolygon(p, 0, 0, r, 6);
+        break;
+
+      case 'star':
+        drawStar(p, 0, 0, r * 0.45, r, 5);
+        break;
+
+      case 'cross': {
+        const arm = s.size * 0.3;
+        p.rectMode(p.CENTER);
+        p.rect(0, 0, arm, s.size, 3);
+        p.rect(0, 0, s.size, arm, 3);
+        break;
+      }
+    }
+
+    // Reset shadow
+    if (p.drawingContext && p.drawingContext.shadowColor !== undefined) {
+      p.drawingContext.shadowColor = 'transparent';
+      p.drawingContext.shadowBlur = 0;
+    }
+
+    p.pop();
+  }
+
+  function drawPolygon(p, cx, cy, radius, sides) {
+    p.beginShape();
+    for (let i = 0; i < sides; i++) {
+      const angle = p.TWO_PI / sides * i - p.HALF_PI;
+      p.vertex(cx + p.cos(angle) * radius, cy + p.sin(angle) * radius);
+    }
+    p.endShape(p.CLOSE);
+  }
+
+  function drawStar(p, cx, cy, innerR, outerR, points) {
+    p.beginShape();
+    for (let i = 0; i < points * 2; i++) {
+      const angle = p.TWO_PI / (points * 2) * i - p.HALF_PI;
+      const r = i % 2 === 0 ? outerR : innerR;
+      p.vertex(cx + p.cos(angle) * r, cy + p.sin(angle) * r);
+    }
+    p.endShape(p.CLOSE);
+  }
+
+  // HSB → CSS rgb string for canvas shadow
+  function hsbToRgbString(h, s, b) {
+    const hNorm = h / 360;
+    const sNorm = s / 100;
+    const bNorm = b / 100;
+    let r, g, bl;
+
+    if (sNorm === 0) {
+      r = g = bl = bNorm;
+    } else {
+      const i = Math.floor(hNorm * 6);
+      const f = hNorm * 6 - i;
+      const pp = bNorm * (1 - sNorm);
+      const q = bNorm * (1 - f * sNorm);
+      const t = bNorm * (1 - (1 - f) * sNorm);
+      switch (i % 6) {
+        case 0: r = bNorm; g = t;     bl = pp; break;
+        case 1: r = q;     g = bNorm; bl = pp; break;
+        case 2: r = pp;    g = bNorm; bl = t;  break;
+        case 3: r = pp;    g = q;     bl = bNorm; break;
+        case 4: r = t;     g = pp;    bl = bNorm; break;
+        case 5: r = bNorm; g = pp;    bl = q;  break;
+      }
+    }
+    return `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(bl*255)},0.6)`;
+  }
+};
+
+// ============================================================================
+//  DOM wiring
+// ============================================================================
+
+const seedInput  = document.getElementById('seed-input');
+const provBlock  = document.getElementById('provenance');
+const legendDiv  = document.getElementById('legend');
+const btnRegen   = document.getElementById('btn-regen');
+const btnCopy    = document.getElementById('btn-copy');
+
+function refreshFromSeed() {
+  const { shapes: s, results } = deriveShapes(currentSeed);
+  shapes = s;
+
+  // Provenance
+  const prov = StringSeed.groupedProvenance(
+    currentSeed, results, AXES_PER_SHAPE,
+    (g) => `Shape ${g + 1} (${shapes[g]?.type || '?'})`,
+    { piece: 'visual demo', date: new Date().toISOString().slice(0, 10) }
+  );
+  provBlock.textContent = prov;
+
+  // Legend
+  legendDiv.innerHTML = '';
+  shapes.forEach((sh, i) => {
+    const item = document.createElement('span');
+    item.className = 'legend-item';
+    const swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    const rgb = hsbToCssHsl(sh.color.h, sh.color.s, sh.color.b);
+    swatch.style.background = rgb;
+    item.appendChild(swatch);
+    item.appendChild(document.createTextNode(
+      `${i + 1}: ${sh.type} · ${sh.color.name} · ${sh.sizeName}`
+    ));
+    legendDiv.appendChild(item);
+  });
+
+  // Sync input
+  if (document.activeElement !== seedInput) {
+    seedInput.value = currentSeed;
+  }
+}
+
+function hsbToCssHsl(h, s, b) {
+  // Quick HSB→HSL for CSS
+  const l = b * (1 - s / 200);
+  const sl = l === 0 || l === 100 ? 0 : (b - l) / Math.min(l, 100 - l) * 100;
+  return `hsl(${h}, ${sl.toFixed(0)}%, ${l.toFixed(0)}%)`;
+}
+
+// ----- Event listeners -----
+
+seedInput.addEventListener('input', () => {
+  const raw = seedInput.value.replace(/[^0-9a-fA-F]/g, '');
+  if (raw.length > 0) {
+    currentSeed = raw;
+    refreshFromSeed();
+  }
+});
+
+btnRegen.addEventListener('click', () => {
+  currentSeed = StringSeed.generateSeed(SEED_BYTES);
+  seedInput.value = currentSeed;
+  refreshFromSeed();
+});
+
+btnCopy.addEventListener('click', () => {
+  navigator.clipboard.writeText(provBlock.textContent).then(() => {
+    btnCopy.textContent = '✓ Copied';
+    setTimeout(() => { btnCopy.textContent = '📋 Copy'; }, 1500);
+  });
+});
+
+// ============================================================================
+//  Boot
+// ============================================================================
+
+new p5(sketch);
+</script>
+
+</body>
+</html>
